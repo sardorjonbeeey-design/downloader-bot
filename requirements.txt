@@ -1,0 +1,9 @@
+python-telegram-bot>=22.0
+yt-dlp
+ffmpeg-python
+python-dotenv
+
+aiohttp
+httpx
+aiofiles
+orjson
