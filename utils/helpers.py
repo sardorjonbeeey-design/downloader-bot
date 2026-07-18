@@ -13,20 +13,23 @@ from config import config
 logger = logging.getLogger(__name__)
 
 def ensure_directory(path: Union[str, Path]) -> None:
-    """Ensure directory exists"""
+    """Ensure directory exists - handles file conflicts"""
     # Convert to Path if string
     if isinstance(path, str):
         path = Path(path)
     
     try:
-        # Check if it exists and is a directory
-        if path.exists():
-            if not path.is_dir():
-                raise NotADirectoryError(f"{path} exists but is not a directory")
-        else:
-            # Create the directory
+        # If it exists and is a file, delete it and create directory
+        if path.exists() and not path.is_dir():
+            logger.warning(f"Removing file '{path}' to create directory")
+            path.unlink()
             path.mkdir(parents=True)
-            logger.debug(f"Created directory: {path}")
+            logger.info(f"Created directory: {path}")
+        elif not path.exists():
+            path.mkdir(parents=True)
+            logger.info(f"Created directory: {path}")
+        else:
+            logger.debug(f"Directory already exists: {path}")
     except Exception as e:
         logger.error(f"Error creating directory {path}: {e}")
         raise
@@ -56,11 +59,8 @@ def cleanup_file(file_path: str) -> None:
 
 def sanitize_filename(filename: str) -> str:
     """Sanitize filename for safe storage"""
-    # Remove invalid characters
     filename = re.sub(r'[<>:"/\\|?*]', '', filename)
-    # Remove excessive whitespace
     filename = re.sub(r'\s+', ' ', filename).strip()
-    # Limit length
     if len(filename) > 200:
         filename = filename[:200]
     return filename
