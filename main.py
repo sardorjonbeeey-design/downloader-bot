@@ -4,7 +4,6 @@ Telegram Universal Downloader Bot
 Main entry point for the application
 """
 import logging
-import asyncio
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler
 
 from config import config
@@ -19,8 +18,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-async def run_bot():
-    """Async function to run the bot"""
+def main():
+    """Main function to run the bot"""
     if not config.BOT_TOKEN:
         logger.error("BOT_TOKEN not found in environment variables")
         return
@@ -44,13 +43,9 @@ async def run_bot():
     application.add_handler(CallbackQueryHandler(handle_callback, pattern=r'^(quality|music)_.*'))
     application.add_handler(CallbackQueryHandler(handle_music_callback, pattern=r'^music_.*'))
     
-    # Start bot
+    # Start bot - simple sync approach
     logger.info("Bot is starting...")
-    await application.run_polling(allowed_updates=['message', 'callback_query'])
-
-def main():
-    """Main function to run the bot"""
-    asyncio.run(run_bot())
+    application.run_polling(allowed_updates=['message', 'callback_query'])
 
 if __name__ == '__main__':
     main()
