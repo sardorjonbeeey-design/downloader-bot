@@ -1,8 +1,8 @@
 """
-TikTok downloader service
+TikTok downloader service with cookie support
 """
-import json
 import logging
+from pathlib import Path
 from typing import Dict, Any, Optional
 
 from services.downloader import DownloaderService
@@ -10,37 +10,30 @@ from services.downloader import DownloaderService
 logger = logging.getLogger(__name__)
 
 class TikTokService(DownloaderService):
-    """TikTok content downloader"""
+    """TikTok content downloader with cookie support"""
+    
+    def __init__(self):
+        super().__init__()
+        self.cookies_file = Path('cookies.txt')
     
     async def download_content(self, url: str) -> Optional[Dict[str, Any]]:
-        """
-        Download TikTok content (video or photo slides)
-        
-        Args:
-            url: TikTok URL
-            
-        Returns:
-            Dictionary with file info and metadata
-        """
         try:
-            # TikTok requires special options for watermark removal
             opts = self.get_ydl_opts('best')
             opts.update({
-                'cookiesfrombrowser': ('chrome',),
                 'extract_flat': False,
-                'sleep_interval': 3,  # Rate limiting
+                'sleep_interval': 3,
             })
+            
+            if self.cookies_file.exists():
+                opts['cookiefile'] = str(self.cookies_file)
+                logger.info("✅ Using cookies.txt for TikTok")
             
             file_path = await self.download(url, opts)
             
             if not file_path or not file_path.exists():
                 return None
             
-            # Check if it's a photo slideshow
-            is_slideshow = False
-            if 'photo' in str(url).lower() or 'slides' in str(url).lower():
-                is_slideshow = True
-            
+            is_slideshow = 'photo' in str(url).lower() or 'slides' in str(url).lower()
             content_type = 'video' if not is_slideshow else 'photo'
             
             return {
@@ -55,9 +48,7 @@ class TikTokService(DownloaderService):
             logger.error(f"TikTok download error: {str(e)}", exc_info=True)
             return None
 
-# Singleton instance
 tiktok_service = TikTokService()
 
 async def download_tiktok(url: str) -> Optional[Dict[str, Any]]:
-    """Download TikTok content"""
     return await tiktok_service.download_content(url)
