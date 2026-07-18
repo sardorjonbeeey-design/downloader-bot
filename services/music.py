@@ -4,16 +4,14 @@ Music search and download service
 import logging
 import asyncio
 import yt_dlp
-from typing import List, Dict, Any, Optional
 from pathlib import Path
+from typing import List, Dict, Any, Optional
 
 from services.youtube import youtube_service
-from utils.helpers import ensure_directory
 
 logger = logging.getLogger(__name__)
 
 async def search_music(query: str, limit: int = 1) -> List[Dict[str, Any]]:
-    """Search for music on YouTube"""
     try:
         opts = {
             'quiet': True,
@@ -21,8 +19,10 @@ async def search_music(query: str, limit: int = 1) -> List[Dict[str, Any]]:
             'extract_flat': True,
             'default_search': 'ytsearch',
             'max_downloads': limit,
-            'cookiesfrombrowser': ('chrome',),  # Add this
         }
+        
+        if youtube_service.cookies_file.exists():
+            opts['cookiefile'] = str(youtube_service.cookies_file)
         
         def sync_search():
             with yt_dlp.YoutubeDL(opts) as ydl:
@@ -58,7 +58,6 @@ async def search_music(query: str, limit: int = 1) -> List[Dict[str, Any]]:
         return []
 
 async def download_music(url: str) -> Optional[Path]:
-    """Download music as MP3 from YouTube"""
     try:
         result = await youtube_service.download_audio(url)
         if result:
