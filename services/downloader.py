@@ -16,7 +16,8 @@ class DownloaderService:
     """Core downloader service with yt-dlp integration"""
     
     def __init__(self):
-        self.download_path = config.DOWNLOAD_PATH
+        # Ensure download_path is a Path object
+        self.download_path = Path(config.DOWNLOAD_PATH)
         ensure_directory(self.download_path)
         
     def get_base_opts(self) -> Dict[str, Any]:
