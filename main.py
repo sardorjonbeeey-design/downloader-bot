@@ -4,6 +4,11 @@ Telegram Universal Downloader Bot
 Main entry point for the application
 """
 import logging
+import os
+import sys
+import threading
+import fcntl
+from flask import Flask
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler
 
 from config import config
@@ -18,11 +23,40 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Create health check server
+health_app = Flask(__name__)
+
+@health_app.route('/')
+def health():
+    return "Bot is running!", 200
+
+def start_health_server():
+    """Start HTTP server for Render health checks"""
+    port = int(os.environ.get('PORT', 10000))
+    health_app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
+
+def check_single_instance():
+    """Prevent multiple bot instances"""
+    try:
+        lock_file = open('/tmp/bot.lock', 'w')
+        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return lock_file
+    except:
+        logger.error("Another instance is already running! Exiting...")
+        sys.exit(1)
+
 def main():
     """Main function to run the bot"""
+    # Check for single instance
+    lock = check_single_instance()
+    
     if not config.BOT_TOKEN:
         logger.error("BOT_TOKEN not found in environment variables")
         return
+    
+    # Start health check server in background
+    logger.info("Starting health check server on port 10000...")
+    threading.Thread(target=start_health_server, daemon=True).start()
     
     # Create application
     application = Application.builder().token(config.BOT_TOKEN).build()
@@ -45,7 +79,12 @@ def main():
     
     # Start bot
     logger.info("Bot is starting...")
-    application.run_polling(allowed_updates=['message', 'callback_query'])
+    
+    try:
+        application.run_polling(allowed_updates=['message', 'callback_query'])
+    finally:
+        if lock:
+            lock.close()
 
 if __name__ == '__main__':
     main()
