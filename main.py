@@ -19,8 +19,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def main():
-    """Main function to run the bot"""
+async def run_bot():
+    """Async function to run the bot"""
     if not config.BOT_TOKEN:
         logger.error("BOT_TOKEN not found in environment variables")
         return
@@ -46,7 +46,11 @@ def main():
     
     # Start bot
     logger.info("Bot is starting...")
-    application.run_polling(allowed_updates=['message', 'callback_query'])
+    await application.run_polling(allowed_updates=['message', 'callback_query'])
+
+def main():
+    """Main function to run the bot"""
+    asyncio.run(run_bot())
 
 if __name__ == '__main__':
     main()
