@@ -16,7 +16,6 @@ class DownloaderService:
     """Core downloader service with yt-dlp integration"""
     
     def __init__(self):
-        # Ensure download_path is a Path object
         self.download_path = Path(config.DOWNLOAD_PATH)
         ensure_directory(self.download_path)
         
@@ -27,19 +26,14 @@ class DownloaderService:
             'no_warnings': True,
             'ignoreerrors': True,
             'extract_flat': False,
+            # Add these for better reliability
+            'retries': 10,
+            'fragment_retries': 10,
+            'skip_download': False,
         }
     
     async def download(self, url: str, options: Dict[str, Any]) -> Optional[Path]:
-        """
-        Download content using yt-dlp
-        
-        Args:
-            url: URL to download
-            options: yt-dlp options
-            
-        Returns:
-            Path to downloaded file or None if failed
-        """
+        """Download content using yt-dlp"""
         def sync_download():
             try:
                 with yt_dlp.YoutubeDL(options) as ydl:
@@ -47,14 +41,12 @@ class DownloaderService:
                     if not info:
                         return None
                     
-                    # Get the downloaded filename
                     filename = ydl.prepare_filename(info)
                     return Path(filename) if Path(filename).exists() else None
             except Exception as e:
                 logger.error(f"Download error: {str(e)}")
                 return None
         
-        # Run in thread pool to avoid blocking
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(None, sync_download)
         return result
