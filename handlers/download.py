@@ -2,14 +2,12 @@
 URL download handlers
 """
 import logging
-import asyncio
 from pathlib import Path
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update
 from telegram.ext import ContextTypes
 
 from config import config
 from utils.validators import detect_url_type
-from services.downloader import download_content
 from services.instagram import download_instagram
 from services.tiktok import download_tiktok
 from services.youtube import download_youtube, download_youtube_audio
@@ -155,7 +153,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 result = await download_youtube(video_info['url'], quality=quality)
                 if result and result.get('file_path'):
                     file_path = result['file_path']
-                    file_size = Path(file_path).stat().st_size
                     
                     # Send video
                     await query.message.reply_video(
