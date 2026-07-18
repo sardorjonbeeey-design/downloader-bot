@@ -1,5 +1,5 @@
 """
-YouTube downloader service with proper authentication
+YouTube downloader service with cookie support
 """
 import logging
 import yt_dlp
@@ -14,28 +14,28 @@ from utils.helpers import format_file_size
 logger = logging.getLogger(__name__)
 
 class YouTubeService(DownloaderService):
-    """YouTube content downloader with proper authentication"""
+    """YouTube content downloader with cookie support"""
     
     def __init__(self):
         super().__init__()
-        # Use Chrome cookies automatically
-        self.use_browser_cookies = True
+        self.cookies_file = Path('cookies.txt')
     
     def get_auth_opts(self) -> Dict[str, Any]:
-        """Get authentication options for yt-dlp"""
-        return {
-            # Use Chrome's cookies automatically
-            'cookiesfrombrowser': ('chrome',),
-            # Alternative: use Firefox
-            # 'cookiesfrombrowser': ('firefox',),
-            # Allow yt-dlp to handle rate limiting
+        opts = {
             'sleep_interval': 5,
             'max_sleep_interval': 30,
             'sleep_interval_requests': 1,
         }
+        
+        if self.cookies_file.exists():
+            opts['cookiefile'] = str(self.cookies_file)
+            logger.info("✅ Using cookies.txt for YouTube")
+        else:
+            logger.warning("⚠️ cookies.txt not found")
+        
+        return opts
     
     async def get_video_info(self, url: str) -> Optional[Dict[str, Any]]:
-        """Get video information and available qualities"""
         try:
             opts = self.get_base_opts()
             opts.update({
@@ -43,7 +43,6 @@ class YouTubeService(DownloaderService):
                 'quiet': True,
                 'no_warnings': True,
             })
-            # Add authentication
             opts.update(self.get_auth_opts())
             
             def sync_extract():
@@ -56,7 +55,6 @@ class YouTubeService(DownloaderService):
             if not info:
                 return None
             
-            # Extract available formats
             qualities = {}
             for quality_key, quality_info in config.YOUTUBE_QUALITIES.items():
                 try:
@@ -90,7 +88,6 @@ class YouTubeService(DownloaderService):
             return None
     
     async def _get_format_size(self, url: str, format_spec: str) -> Optional[str]:
-        """Get file size for specific format"""
         try:
             opts = self.get_base_opts()
             opts.update({
@@ -117,7 +114,6 @@ class YouTubeService(DownloaderService):
             return None
     
     async def download_video(self, url: str, quality: str = '720p') -> Optional[Dict[str, Any]]:
-        """Download YouTube video with specified quality"""
         try:
             if quality not in config.YOUTUBE_QUALITIES:
                 quality = '720p'
@@ -148,7 +144,6 @@ class YouTubeService(DownloaderService):
             return None
     
     async def download_audio(self, url: str) -> Optional[Dict[str, Any]]:
-        """Download audio from YouTube as MP3"""
         try:
             opts = self.get_base_opts()
             opts.update({
@@ -191,7 +186,6 @@ class YouTubeService(DownloaderService):
             return None
     
     def _format_duration(self, seconds: int) -> str:
-        """Format duration in human readable format"""
         hours = seconds // 3600
         minutes = (seconds % 3600) // 60
         seconds = seconds % 60
@@ -201,16 +195,13 @@ class YouTubeService(DownloaderService):
         else:
             return f"{minutes}:{seconds:02d}"
 
-# Singleton instance
 youtube_service = YouTubeService()
 
 async def download_youtube(url: str, quality: Optional[str] = None) -> Optional[Dict[str, Any]]:
-    """Download YouTube content"""
     if not quality:
         return await youtube_service.get_video_info(url)
     else:
         return await youtube_service.download_video(url, quality)
 
 async def download_youtube_audio(url: str) -> Optional[Dict[str, Any]]:
-    """Download YouTube audio as MP3"""
     return await youtube_service.download_audio(url)
