@@ -13,16 +13,7 @@ from utils.helpers import ensure_directory
 logger = logging.getLogger(__name__)
 
 async def search_music(query: str, limit: int = 1) -> List[Dict[str, Any]]:
-    """
-    Search for music on YouTube
-    
-    Args:
-        query: Search query
-        limit: Maximum number of results
-        
-    Returns:
-        List of music results
-    """
+    """Search for music on YouTube"""
     try:
         opts = {
             'quiet': True,
@@ -30,6 +21,7 @@ async def search_music(query: str, limit: int = 1) -> List[Dict[str, Any]]:
             'extract_flat': True,
             'default_search': 'ytsearch',
             'max_downloads': limit,
+            'cookiesfrombrowser': ('chrome',),  # Add this
         }
         
         def sync_search():
@@ -46,7 +38,6 @@ async def search_music(query: str, limit: int = 1) -> List[Dict[str, Any]]:
             if not entry:
                 continue
                 
-            # Extract duration
             duration = entry.get('duration', 0)
             duration_str = f"{duration // 60}:{duration % 60:02d}"
             
@@ -67,15 +58,7 @@ async def search_music(query: str, limit: int = 1) -> List[Dict[str, Any]]:
         return []
 
 async def download_music(url: str) -> Optional[Path]:
-    """
-    Download music as MP3 from YouTube
-    
-    Args:
-        url: YouTube URL
-        
-    Returns:
-        Path to downloaded MP3 file
-    """
+    """Download music as MP3 from YouTube"""
     try:
         result = await youtube_service.download_audio(url)
         if result:
