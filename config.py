@@ -6,7 +6,7 @@ load_dotenv()
 
 class Config:
     BOT_TOKEN = os.getenv('BOT_TOKEN')
-    DOWNLOAD_PATH = Path(os.getenv('DOWNLOAD_PATH', './downloads'))
+    DOWNLOAD_PATH = str(Path(os.getenv('DOWNLOAD_PATH', './downloads')))  # Convert to string
     MAX_FILE_SIZE = int(os.getenv('MAX_FILE_SIZE', 50))  # MB
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
     
