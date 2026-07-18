@@ -1,12 +1,11 @@
 """
-YouTube downloader service
+YouTube downloader service with proper authentication
 """
-import json
 import logging
 import yt_dlp
 import asyncio
-from typing import Dict, Any, Optional, List
 from pathlib import Path
+from typing import Dict, Any, Optional
 
 from services.downloader import DownloaderService
 from config import config
@@ -15,18 +14,28 @@ from utils.helpers import format_file_size
 logger = logging.getLogger(__name__)
 
 class YouTubeService(DownloaderService):
-    """YouTube content downloader"""
+    """YouTube content downloader with proper authentication"""
+    
+    def __init__(self):
+        super().__init__()
+        # Use Chrome cookies automatically
+        self.use_browser_cookies = True
+    
+    def get_auth_opts(self) -> Dict[str, Any]:
+        """Get authentication options for yt-dlp"""
+        return {
+            # Use Chrome's cookies automatically
+            'cookiesfrombrowser': ('chrome',),
+            # Alternative: use Firefox
+            # 'cookiesfrombrowser': ('firefox',),
+            # Allow yt-dlp to handle rate limiting
+            'sleep_interval': 5,
+            'max_sleep_interval': 30,
+            'sleep_interval_requests': 1,
+        }
     
     async def get_video_info(self, url: str) -> Optional[Dict[str, Any]]:
-        """
-        Get video information and available qualities
-        
-        Args:
-            url: YouTube URL
-            
-        Returns:
-            Dictionary with video info and quality options
-        """
+        """Get video information and available qualities"""
         try:
             opts = self.get_base_opts()
             opts.update({
@@ -34,6 +43,8 @@ class YouTubeService(DownloaderService):
                 'quiet': True,
                 'no_warnings': True,
             })
+            # Add authentication
+            opts.update(self.get_auth_opts())
             
             def sync_extract():
                 with yt_dlp.YoutubeDL(opts) as ydl:
@@ -49,7 +60,6 @@ class YouTubeService(DownloaderService):
             qualities = {}
             for quality_key, quality_info in config.YOUTUBE_QUALITIES.items():
                 try:
-                    # Get file size for this quality
                     format_spec = quality_info['format']
                     size_info = await self._get_format_size(url, format_spec)
                     qualities[quality_key] = {
@@ -87,12 +97,12 @@ class YouTubeService(DownloaderService):
                 'extract_flat': True,
                 'quiet': True,
             })
+            opts.update(self.get_auth_opts())
             
             def sync_get_size():
                 with yt_dlp.YoutubeDL(opts) as ydl:
                     info = ydl.extract_info(url, download=False)
                     if info:
-                        # Try to get file size
                         for f in info.get('formats', []):
                             if f.get('format_id') == format_spec:
                                 size = f.get('filesize') or f.get('filesize_approx')
@@ -107,16 +117,7 @@ class YouTubeService(DownloaderService):
             return None
     
     async def download_video(self, url: str, quality: str = '720p') -> Optional[Dict[str, Any]]:
-        """
-        Download YouTube video with specified quality
-        
-        Args:
-            url: YouTube URL
-            quality: Quality key (360p, 480p, 720p, 1080p)
-            
-        Returns:
-            Dictionary with file info
-        """
+        """Download YouTube video with specified quality"""
         try:
             if quality not in config.YOUTUBE_QUALITIES:
                 quality = '720p'
@@ -128,6 +129,7 @@ class YouTubeService(DownloaderService):
             opts.update({
                 'merge_output_format': 'mp4',
             })
+            opts.update(self.get_auth_opts())
             
             file_path = await self.download(url, opts)
             
@@ -146,15 +148,7 @@ class YouTubeService(DownloaderService):
             return None
     
     async def download_audio(self, url: str) -> Optional[Dict[str, Any]]:
-        """
-        Download audio from YouTube as MP3
-        
-        Args:
-            url: YouTube URL
-            
-        Returns:
-            Dictionary with file info
-        """
+        """Download audio from YouTube as MP3"""
         try:
             opts = self.get_base_opts()
             opts.update({
@@ -174,13 +168,13 @@ class YouTubeService(DownloaderService):
                 'writethumbnail': True,
                 'quiet': True,
             })
+            opts.update(self.get_auth_opts())
             
             file_path = await self.download(url, opts)
             
             if not file_path or not file_path.exists():
                 return None
             
-            # Get MP3 file
             mp3_path = file_path.with_suffix('.mp3')
             if mp3_path.exists():
                 return {
@@ -211,21 +205,10 @@ class YouTubeService(DownloaderService):
 youtube_service = YouTubeService()
 
 async def download_youtube(url: str, quality: Optional[str] = None) -> Optional[Dict[str, Any]]:
-    """
-    Download YouTube content
-    
-    Args:
-        url: YouTube URL
-        quality: Quality to download (if None, returns info for selection)
-        
-    Returns:
-        Dictionary with file info or video info for quality selection
-    """
+    """Download YouTube content"""
     if not quality:
-        # Return video info for quality selection
         return await youtube_service.get_video_info(url)
     else:
-        # Download with specific quality
         return await youtube_service.download_video(url, quality)
 
 async def download_youtube_audio(url: str) -> Optional[Dict[str, Any]]:
