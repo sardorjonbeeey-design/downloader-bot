@@ -43,7 +43,7 @@ def main():
     application.add_handler(CallbackQueryHandler(handle_callback, pattern=r'^(quality|music)_.*'))
     application.add_handler(CallbackQueryHandler(handle_music_callback, pattern=r'^music_.*'))
     
-    # Start bot - simple sync approach
+    # Start bot
     logger.info("Bot is starting...")
     application.run_polling(allowed_updates=['message', 'callback_query'])
 
