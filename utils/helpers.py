@@ -2,6 +2,7 @@
 Utility helper functions
 """
 import re
+import os
 from pathlib import Path
 from typing import Optional
 from datetime import datetime
@@ -13,7 +14,17 @@ logger = logging.getLogger(__name__)
 
 def ensure_directory(path: Path) -> None:
     """Ensure directory exists"""
-    path.mkdir(parents=True, exist_ok=True)
+    try:
+        # Convert to string and use os.makedirs for better compatibility
+        path_str = str(path)
+        os.makedirs(path_str, exist_ok=True)
+    except Exception as e:
+        logger.error(f"Error creating directory {path}: {e}")
+        # If it's already a directory, that's fine
+        if path.exists() and path.is_dir():
+            pass
+        else:
+            raise
 
 def format_file_size(size_bytes: int) -> str:
     """Format file size in human readable format"""
