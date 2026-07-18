@@ -1,9 +1,7 @@
-python-telegram-bot>=22.0
-yt-dlp
-ffmpeg-python
-python-dotenv
-
-aiohttp
-httpx
-aiofiles
-orjson
+python-telegram-bot==22.0a1
+yt-dlp==2024.11.18
+python-dotenv==1.0.1
+aiohttp==3.10.10
+aiofiles==24.1.0
+pillow==10.4.0
+requests==2.32.3
