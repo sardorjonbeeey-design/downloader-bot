@@ -14,17 +14,12 @@ logger = logging.getLogger(__name__)
 
 def ensure_directory(path: Path) -> None:
     """Ensure directory exists"""
-    try:
-        # Convert to string and use os.makedirs for better compatibility
-        path_str = str(path)
-        os.makedirs(path_str, exist_ok=True)
-    except Exception as e:
-        logger.error(f"Error creating directory {path}: {e}")
-        # If it's already a directory, that's fine
-        if path.exists() and path.is_dir():
-            pass
-        else:
-            raise
+    # Simple fix: just check if it exists, if not create it
+    if not path.exists():
+        path.mkdir(parents=True)
+    # If it's a file, that's an error
+    elif not path.is_dir():
+        raise NotADirectoryError(f"{path} exists but is not a directory")
 
 def format_file_size(size_bytes: int) -> str:
     """Format file size in human readable format"""
