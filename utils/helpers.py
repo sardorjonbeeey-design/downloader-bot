@@ -4,7 +4,7 @@ Utility helper functions
 import re
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 from datetime import datetime
 import logging
 
@@ -12,14 +12,24 @@ from config import config
 
 logger = logging.getLogger(__name__)
 
-def ensure_directory(path: Path) -> None:
+def ensure_directory(path: Union[str, Path]) -> None:
     """Ensure directory exists"""
-    # Simple fix: just check if it exists, if not create it
-    if not path.exists():
-        path.mkdir(parents=True)
-    # If it's a file, that's an error
-    elif not path.is_dir():
-        raise NotADirectoryError(f"{path} exists but is not a directory")
+    # Convert to Path if string
+    if isinstance(path, str):
+        path = Path(path)
+    
+    try:
+        # Check if it exists and is a directory
+        if path.exists():
+            if not path.is_dir():
+                raise NotADirectoryError(f"{path} exists but is not a directory")
+        else:
+            # Create the directory
+            path.mkdir(parents=True)
+            logger.debug(f"Created directory: {path}")
+    except Exception as e:
+        logger.error(f"Error creating directory {path}: {e}")
+        raise
 
 def format_file_size(size_bytes: int) -> str:
     """Format file size in human readable format"""
