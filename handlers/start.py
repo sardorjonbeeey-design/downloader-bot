@@ -1,5 +1,5 @@
 """
-Start and help command handlers
+Start and help command handlers - Yukla Pro
 """
 import logging
 from telegram import Update
@@ -9,40 +9,63 @@ logger = logging.getLogger(__name__)
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /start command"""
-    welcome_message = (
-        "🎯 *Universal Downloader Bot*\n\n"
-        "Send me any link from the following platforms and I'll download it for you:\n\n"
-        "📸 *Instagram* - Photos, Reels, Carousels, Stories\n"
-        "🎵 *TikTok* - Videos, Slides, Audio\n"
-        "▶️ *YouTube* - Videos, Shorts, Audio\n"
-        "🎶 *Music* - Search by song name or artist\n\n"
-        "Just paste a link or type a song name and I'll handle the rest!\n"
-        "No commands needed.\n\n"
-        "ℹ️ Use /help for more information"
+    welcome = (
+        "▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️\n"
+        "  ⚡ Yukla Pro\n"
+        "▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️\n\n"
+        "  Universal Downloader\n\n"
+        "  📸 Instagram  ·  Posts  ·  Reels\n"
+        "  🎵 TikTok  ·  Videos  ·  Photos\n"
+        "  ▶️ YouTube  ·  Videos  ·  Shorts\n"
+        "  🎧 Audio  ·  MP3 from YouTube\n\n"
+        "  ───────────\n\n"
+        "  Paste a link to download.\n"
+        "  Type a song name for audio.\n\n"
+        "  ❓ /help  ·  ℹ️ /info"
     )
-    await update.message.reply_text(welcome_message, parse_mode='Markdown')
+    
+    await update.message.reply_text(welcome, parse_mode='Markdown')
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /help command"""
-    help_message = (
-        "📖 *How to use the bot*\n\n"
-        "*1. Instagram:*\n"
-        "Send any Instagram link (post, reel, story, or profile)\n\n"
-        "*2. TikTok:*\n"
-        "Send any TikTok video or photo slide link\n\n"
-        "*3. YouTube:*\n"
-        "Send any YouTube video or Shorts link\n"
-        "You can choose quality from the available options\n\n"
-        "*4. Music Search:*\n"
-        "Simply type a song name or artist + song name\n"
-        "Example: \"Imagine Dragons Believer\"\n\n"
-        "*Quick Tips:*\n"
-        "• The bot detects links automatically\n"
-        "• Downloads are cleaned up after sending\n"
-        "• Maximum file size: 50MB\n"
-        "• Supported audio formats: MP3\n\n"
-        "*Commands:*\n"
-        "/start - Welcome message\n"
-        "/help - This help message"
+    help_text = (
+        "▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️\n"
+        "  📖 Yukla Pro Guide\n"
+        "▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️\n\n"
+        "  📸 Instagram\n"
+        "  Posts · Reels · Carousels\n\n"
+        "  🎵 TikTok\n"
+        "  Videos · Photo Slides\n\n"
+        "  ▶️ YouTube\n"
+        "  Videos · Shorts · MP3\n\n"
+        "  ───────────\n\n"
+        "  How to use:\n"
+        "  1. Copy a link\n"
+        "  2. Paste it here\n"
+        "  3. Wait for download\n\n"
+        "  💡 Tip: For audio, type song name.\n\n"
+        "  🏠 /start  ·  ℹ️ /info"
     )
-    await update.message.reply_text(help_message, parse_mode='Markdown')
+    
+    await update.message.reply_text(help_text, parse_mode='Markdown')
+
+async def info_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /info command"""
+    info_text = (
+        "▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️\n"
+        "  ℹ️ Yukla Pro\n"
+        "▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️\n\n"
+        "  Version · 2.0\n"
+        "  Status · Online\n\n"
+        "  Supported:\n"
+        "  · Instagram\n"
+        "  · TikTok\n"
+        "  · YouTube\n\n"
+        "  Features:\n"
+        "  · Quality selection\n"
+        "  · Fast downloads\n"
+        "  · MP3 extraction\n\n"
+        "  📱 Made with ❤️"
+    )
+    
+    await update.message.reply_text(info_text, parse_mode='Markdown')
