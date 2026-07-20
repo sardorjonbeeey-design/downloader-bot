@@ -1,5 +1,5 @@
 """
-TikTok downloader service - Cobalt powered
+TikTok downloader service - Using your Cobalt instance
 """
 import logging
 import aiohttp
@@ -8,19 +8,20 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 
 from services.downloader import DownloaderService
+from config import config
 
 logger = logging.getLogger(__name__)
 
 class TikTokService(DownloaderService):
-    """TikTok content downloader using Cobalt API"""
+    """TikTok content downloader using your Cobalt instance"""
     
     def __init__(self):
         super().__init__()
-        # Cobalt API endpoint
-        self.cobalt_api = "https://api.cobalt.tools/api/json"
+        # Use your Cobalt instance
+        self.cobalt_api = f"{config.COBALT_API_URL}/api/json"
     
     async def download_with_cobalt(self, url: str) -> Optional[Path]:
-        """Download using Cobalt API"""
+        """Download using your Cobalt instance"""
         try:
             async with aiohttp.ClientSession() as session:
                 payload = {
@@ -67,7 +68,6 @@ class TikTokService(DownloaderService):
             if not file_path or not file_path.exists():
                 return None
             
-            # Determine content type
             is_photo = 'photo' in str(url).lower() or file_path.suffix in ['.jpg', '.jpeg', '.png']
             content_type = 'photo' if is_photo else 'video'
             
