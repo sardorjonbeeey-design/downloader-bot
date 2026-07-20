@@ -1,24 +1,21 @@
-"""
-Handlers - All exports from main_handler
-"""
-from handlers.main_handler import (
-    start_command,
-    help_command,
-    info_command,
-    handle_url,
-    handle_youtube_callback,
-    handle_music_search,
-    handle_music_callback,
-    get_quality_keyboard,
-)
+from .downloader import DownloaderService, download_content
+from .instagram import download_instagram
+from .tiktok import download_tiktok
+from .youtube import download_youtube, download_youtube_audio
+from .pinterest import download_pinterest
+from .music import search_music, download_music
+from .cobalt import cobalt, download_with_cobalt
 
 __all__ = [
-    'start_command',
-    'help_command',
-    'info_command',
-    'handle_url',
-    'handle_youtube_callback',
-    'handle_music_search',
-    'handle_music_callback',
-    'get_quality_keyboard',
+    'DownloaderService',
+    'download_content',
+    'download_instagram',
+    'download_tiktok',
+    'download_youtube',
+    'download_youtube_audio',
+    'download_pinterest',
+    'search_music',
+    'download_music',
+    'cobalt',
+    'download_with_cobalt'
 ]
