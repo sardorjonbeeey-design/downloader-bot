@@ -3,6 +3,9 @@
 Yukla Pro - All-in-One Downloader Bot
 """
 import logging
+import os
+import threading
+from flask import Flask
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler
 
 from config import config
@@ -22,11 +25,32 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Create health check server
+health_app = Flask(__name__)
+
+@health_app.route('/')
+def health():
+    return "✅ Yukla Pro is running!", 200
+
+@health_app.route('/health')
+def health_check():
+    return {"status": "ok", "service": "Yukla Pro"}, 200
+
+def start_health_server():
+    """Start health check server for Render"""
+    port = int(os.environ.get('PORT', 10000))
+    health_app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
+
 def main():
     if not config.BOT_TOKEN:
         logger.error("BOT_TOKEN not found")
         return
     
+    # Start health check server in background
+    logger.info("🔄 Starting health check server...")
+    threading.Thread(target=start_health_server, daemon=True).start()
+    
+    # Create application
     application = Application.builder().token(config.BOT_TOKEN).build()
     
     # Commands
@@ -49,6 +73,8 @@ def main():
     
     logger.info(f"📊 Stats: {stats_manager.stats['total_downloads']} total downloads")
     logger.info("⚡ Yukla Pro is starting...")
+    
+    # Start bot
     application.run_polling(allowed_updates=['message', 'callback_query'])
 
 if __name__ == '__main__':
