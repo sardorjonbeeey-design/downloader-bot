@@ -3,7 +3,6 @@ Instagram downloader service - Using your Cobalt instance
 """
 import logging
 import aiohttp
-import asyncio
 from pathlib import Path
 from typing import Dict, Any, Optional
 
@@ -18,6 +17,7 @@ class InstagramService(DownloaderService):
     def __init__(self):
         super().__init__()
         self.cobalt_api = f"{config.COBALT_API_URL}/api/json"
+        logger.info(f"✅ Using Cobalt: {self.cobalt_api}")
     
     async def download_with_cobalt(self, url: str) -> Optional[Path]:
         """Download using your Cobalt instance"""
@@ -73,7 +73,7 @@ class InstagramService(DownloaderService):
             return {
                 'file_path': str(file_path),
                 'type': content_type,
-                'caption': '✓ Instagram content downloaded',
+                'caption': '✅ Instagram content downloaded',
                 'source': 'instagram'
             }
             
