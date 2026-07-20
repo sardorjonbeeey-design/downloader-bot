@@ -9,14 +9,15 @@ def extract_cookies():
             cookies = extract_cookies_from_browser('firefox')
             print(f"✅ Extracted {len(cookies)} cookies from Firefox")
         except:
-            print("❌ Could not extract cookies. Please install browser extension.")
+            print("❌ Could not extract cookies.")
+            print("Install 'Get cookies.txt LOCALLY' extension")
             return
     
     with open('cookies.txt', 'w') as f:
         for cookie in cookies:
             f.write(f"{cookie.domain}\tTRUE\t{cookie.path}\t{cookie.secure}\t{cookie.expires}\t{cookie.name}\t{cookie.value}\n")
     
-    print("✅ cookies.txt created successfully!")
+    print("✅ cookies.txt created!")
 
 if __name__ == '__main__':
     extract_cookies()
