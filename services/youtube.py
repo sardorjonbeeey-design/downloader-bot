@@ -1,5 +1,5 @@
 """
-YouTube downloader service with cookie support
+YouTube downloader service - Full Cookie Support
 """
 import logging
 import yt_dlp
@@ -21,15 +21,15 @@ class YouTubeService(DownloaderService):
         self.cookies_file = Path('cookies.txt')
     
     def get_auth_opts(self) -> Dict[str, Any]:
+        """Get authentication options"""
         opts = {
             'sleep_interval': 5,
             'max_sleep_interval': 30,
-            'sleep_interval_requests': 1,
         }
         
         if self.cookies_file.exists():
             opts['cookiefile'] = str(self.cookies_file)
-            logger.info("✅ Using cookies.txt for YouTube")
+            logger.info("✅ Using cookies.txt")
         else:
             logger.warning("⚠️ cookies.txt not found")
         
@@ -135,7 +135,7 @@ class YouTubeService(DownloaderService):
             return {
                 'file_path': str(file_path),
                 'type': 'video',
-                'caption': f'▶️ YouTube video downloaded successfully!',
+                'caption': '✓ YouTube video downloaded',
                 'source': 'youtube'
             }
             
@@ -175,7 +175,7 @@ class YouTubeService(DownloaderService):
                 return {
                     'file_path': str(mp3_path),
                     'type': 'audio',
-                    'caption': '🎵 Audio downloaded successfully!',
+                    'caption': '✓ Audio downloaded',
                     'source': 'youtube'
                 }
             
