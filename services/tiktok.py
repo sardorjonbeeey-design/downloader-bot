@@ -16,7 +16,8 @@ class TikTokService(DownloaderService):
     
     def __init__(self):
         super().__init__()
-        self.cobalt_api = f"{config.COBALT_API_URL}/api/json"
+        # Use the full API endpoint from config
+        self.cobalt_api = config.COBALT_API_URL
         logger.info(f"✅ Using Cobalt: {self.cobalt_api}")
     
     async def download_with_cobalt(self, url: str) -> Optional[Path]:
@@ -26,23 +27,32 @@ class TikTokService(DownloaderService):
                 payload = {
                     "url": url,
                     "videoQuality": "720",
-                    "audioFormat": "mp3",
                     "downloadMode": "auto"
                 }
                 
-                async with session.post(self.cobalt_api, json=payload) as response:
+                async with session.post(
+                    self.cobalt_api, 
+                    json=payload,
+                    headers={"Content-Type": "application/json"}
+                ) as response:
+                    if response.status == 404:
+                        logger.error(f"❌ Cobalt API not found at: {self.cobalt_api}")
+                        logger.error("Check that COBALT_API_URL in .env is correct")
+                        return None
+                    
                     if response.status != 200:
-                        logger.error(f"Cobalt API error: {response.status}")
+                        logger.error(f"❌ Cobalt API error: {response.status}")
                         return None
                     
                     data = await response.json()
                     
                     if data.get('status') != 'ok':
-                        logger.error(f"Cobalt error: {data.get('text')}")
+                        logger.error(f"❌ Cobalt error: {data.get('text')}")
                         return None
                     
                     download_url = data.get('url')
                     if not download_url:
+                        logger.error("❌ No download URL in response")
                         return None
                     
                     filename = data.get('filename', 'tiktok_video.mp4')
@@ -52,11 +62,17 @@ class TikTokService(DownloaderService):
                         if file_response.status == 200:
                             with open(filepath, 'wb') as f:
                                 f.write(await file_response.read())
+                            logger.info(f"✅ Downloaded: {filepath}")
                             return filepath
-                        return None
+                        else:
+                            logger.error(f"❌ Failed to download file: {file_response.status}")
+                            return None
                             
+        except aiohttp.ClientConnectorError:
+            logger.error(f"❌ Cannot connect to Cobalt at: {self.cobalt_api}")
+            return None
         except Exception as e:
-            logger.error(f"Cobalt download error: {str(e)}")
+            logger.error(f"❌ Cobalt download error: {str(e)}")
             return None
     
     async def download_content(self, url: str) -> Optional[Dict[str, Any]]:
@@ -78,7 +94,7 @@ class TikTokService(DownloaderService):
             }
             
         except Exception as e:
-            logger.error(f"TikTok download error: {str(e)}", exc_info=True)
+            logger.error(f"❌ TikTok download error: {str(e)}", exc_info=True)
             return None
 
 tiktok_service = TikTokService()
