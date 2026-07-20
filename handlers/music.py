@@ -1,121 +1,93 @@
 """
-Music search and download handlers - Yukla Pro Audio
+Admin handlers - Analytics and Stats
 """
 import logging
-import asyncio
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+import json
+from pathlib import Path
+from datetime import datetime
+from telegram import Update
 from telegram.ext import ContextTypes
-
-from services.music import search_music, download_music
-from utils.helpers import cleanup_file
 
 logger = logging.getLogger(__name__)
 
-async def animate_search(msg, query):
-    """Animate search - Minimal"""
-    animations = ["·", "··", "···"]
-    texts = [
-        f"Searching for \"{query}\"",
-        f"Finding audio",
-        f"Almost ready"
-    ]
-    
-    i = 0
-    while True:
-        await asyncio.sleep(0.8)
-        try:
-            await msg.edit_text(f"{animations[i % len(animations)]} {texts[i % len(texts)]}")
-            i += 1
-        except:
-            break
+ADMIN_IDS = [123456789]  # Replace with your Telegram user ID
 
-async def handle_music_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle music/audio search"""
-    query_text = update.message.text.strip()
+class StatsManager:
+    def __init__(self):
+        self.stats_file = Path('data/stats.json')
+        self.stats_file.parent.mkdir(parents=True, exist_ok=True)
+        self.stats = self.load_stats()
     
-    status_msg = await update.message.reply_text(
-        f"· Searching for \"{query_text}\"..."
-    )
+    def load_stats(self):
+        if self.stats_file.exists():
+            with open(self.stats_file, 'r') as f:
+                return json.load(f)
+        return {
+            'total_downloads': 0,
+            'downloads_by_platform': {},
+            'downloads_by_user': {},
+            'daily_downloads': {},
+            'start_date': datetime.now().isoformat()
+        }
     
-    animation_task = asyncio.create_task(animate_search(status_msg, query_text))
+    def save_stats(self):
+        with open(self.stats_file, 'w') as f:
+            json.dump(self.stats, f, indent=2)
     
-    try:
-        results = await search_music(query_text)
+    def add_download(self, user_id: int, platform: str):
+        self.stats['total_downloads'] += 1
         
-        if not results:
-            animation_task.cancel()
-            await status_msg.edit_text(
-                f"✗ No results found\n\n"
-                f"\"{query_text}\"\n\n"
-                "Try:\n"
-                "· Different spelling\n"
-                "· Artist + song name\n"
-                "· Shorter query"
-            )
-            return
+        if platform not in self.stats['downloads_by_platform']:
+            self.stats['downloads_by_platform'][platform] = 0
+        self.stats['downloads_by_platform'][platform] += 1
         
-        result = results[0]
-        animation_task.cancel()
-        await status_msg.delete()
+        user_id_str = str(user_id)
+        if user_id_str not in self.stats['downloads_by_user']:
+            self.stats['downloads_by_user'][user_id_str] = 0
+        self.stats['downloads_by_user'][user_id_str] += 1
         
-        keyboard = InlineKeyboardMarkup([
-            [
-                InlineKeyboardButton("🎧 Download MP3", callback_data=f"music_download_{result['id']}"),
-                InlineKeyboardButton("▶️ Watch", url=result['url'])
-            ]
-        ])
+        today = datetime.now().strftime('%Y-%m-%d')
+        if today not in self.stats['daily_downloads']:
+            self.stats['daily_downloads'][today] = 0
+        self.stats['daily_downloads'][today] += 1
         
-        await update.message.reply_photo(
-            photo=result['thumbnail'],
-            caption=(
-                f"✓ **{result['title']}**\n\n"
-                f"Artist · {result['artist']}\n"
-                f"Duration · {result['duration']}\n\n"
-                f"Select an option:"
-            ),
-            reply_markup=keyboard,
-            parse_mode='Markdown'
-        )
-        
-        context.user_data['music_result'] = result
-        
-    except Exception as e:
-        logger.error(f"Music search error: {str(e)}", exc_info=True)
-        animation_task.cancel()
-        await status_msg.edit_text(f"✗ Search failed\n\n{str(e)[:100]}")
+        self.save_stats()
+    
+    def get_stats(self):
+        return self.stats
 
-async def handle_music_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle music callback queries"""
-    query = update.callback_query
-    await query.answer()
+stats_manager = StatsManager()
+
+async def is_admin(update: Update) -> bool:
+    user_id = update.effective_user.id
+    return user_id in ADMIN_IDS
+
+async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await is_admin(update):
+        await update.message.reply_text("⛔ This command is for admin only.")
+        return
     
-    data = query.data
-    _, action, music_id = data.split('_')
+    stats = stats_manager.get_stats()
     
-    if action == 'download':
-        result = context.user_data.get('music_result')
-        
-        if not result or result.get('id') != music_id:
-            await query.edit_message_text("✗ Session expired\n\nSearch again.")
-            return
-        
-        await query.edit_message_text("· Downloading MP3...")
-        
-        try:
-            file_path = await download_music(result['url'])
-            
-            if file_path:
-                await query.message.reply_audio(
-                    audio=open(file_path, 'rb'),
-                    title=result['title'],
-                    performer=result['artist'],
-                    duration=result.get('duration_seconds', 0)
-                )
-                cleanup_file(file_path)
-                await query.message.delete()
-            else:
-                await query.edit_message_text("✗ MP3 download failed")
-                
-        except Exception as e:
-            logger.error(f"Music download error: {str(e)}", exc_info=True)
-            await query.edit_message_text(f"✗ Error: {str(e)[:50]}")
+    platform_lines = []
+    for platform, count in stats['downloads_by_platform'].items():
+        platform_lines.append(f"  {platform}: {count}")
+    
+    top_users = sorted(
+        stats['downloads_by_user'].items(),
+        key=lambda x: x[1],
+        reverse=True
+    )[:5]
+    
+    user_lines = []
+    for user_id, count in top_users:
+        user_lines.append(f"  {user_id}: {count}")
+    
+    stats_text = (
+        "📊 *Yukla Pro Stats*\n"
+        "━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"📦 Total downloads: {stats['total_downloads']}\n\n"
+        "*By platform:*\n" + "\n".join(platform_lines) + "\n\n"
+        "*Top users:*\n" + "\n".join(user_lines) + "\n\n"
+        f"📅 Started: {stats['start_date'][:10]}\n"
+        f"📈 Today: {stats['daily_downloads'].get(dat
