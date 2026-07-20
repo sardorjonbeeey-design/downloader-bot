@@ -1,7 +1,9 @@
 """
-TikTok downloader service - Supports videos and photos
+TikTok downloader service - Cobalt powered
 """
 import logging
+import aiohttp
+import asyncio
 from pathlib import Path
 from typing import Dict, Any, Optional
 
@@ -10,43 +12,60 @@ from services.downloader import DownloaderService
 logger = logging.getLogger(__name__)
 
 class TikTokService(DownloaderService):
-    """TikTok content downloader - videos + photos"""
+    """TikTok content downloader using Cobalt API"""
     
     def __init__(self):
         super().__init__()
-        self.cookies_file = Path('cookies.txt')
+        # Cobalt API endpoint
+        self.cobalt_api = "https://api.cobalt.tools/api/json"
+    
+    async def download_with_cobalt(self, url: str) -> Optional[Path]:
+        """Download using Cobalt API"""
+        try:
+            async with aiohttp.ClientSession() as session:
+                payload = {
+                    "url": url,
+                    "videoQuality": "720",
+                    "audioFormat": "mp3",
+                    "downloadMode": "auto"
+                }
+                
+                async with session.post(self.cobalt_api, json=payload) as response:
+                    if response.status != 200:
+                        logger.error(f"Cobalt API error: {response.status}")
+                        return None
+                    
+                    data = await response.json()
+                    
+                    if data.get('status') != 'ok':
+                        logger.error(f"Cobalt error: {data.get('text')}")
+                        return None
+                    
+                    download_url = data.get('url')
+                    if not download_url:
+                        return None
+                    
+                    filename = data.get('filename', 'tiktok_video.mp4')
+                    filepath = self.download_path / filename
+                    
+                    async with session.get(download_url) as file_response:
+                        if file_response.status == 200:
+                            with open(filepath, 'wb') as f:
+                                f.write(await file_response.read())
+                            return filepath
+                        return None
+                            
+        except Exception as e:
+            logger.error(f"Cobalt download error: {str(e)}")
+            return None
     
     async def download_content(self, url: str) -> Optional[Dict[str, Any]]:
-        """Download TikTok content (video or photo)"""
+        """Download TikTok content using Cobalt"""
         try:
-            opts = self.get_ydl_opts('best')
-            opts.update({
-                'extract_flat': False,
-                'sleep_interval': 3,
-                'ignoreerrors': True,
-            })
-            
-            if self.cookies_file.exists():
-                opts['cookiefile'] = str(self.cookies_file)
-                logger.info("✅ Using cookies.txt for TikTok")
-            
-            file_path = await self.download(url, opts)
+            file_path = await self.download_with_cobalt(url)
             
             if not file_path or not file_path.exists():
-                # Try alternative format for photos
-                logger.info("Trying alternative download for TikTok photo...")
-                opts2 = self.get_ydl_opts('bestvideo+bestaudio/best')
-                opts2.update({
-                    'extract_flat': False,
-                    'sleep_interval': 3,
-                    'ignoreerrors': True,
-                })
-                if self.cookies_file.exists():
-                    opts2['cookiefile'] = str(self.cookies_file)
-                file_path = await self.download(url, opts2)
-                
-                if not file_path or not file_path.exists():
-                    return None
+                return None
             
             # Determine content type
             is_photo = 'photo' in str(url).lower() or file_path.suffix in ['.jpg', '.jpeg', '.png']
@@ -56,8 +75,7 @@ class TikTokService(DownloaderService):
                 'file_path': str(file_path),
                 'type': content_type,
                 'caption': f'✓ TikTok {content_type} downloaded',
-                'source': 'tiktok',
-                'no_watermark': True
+                'source': 'tiktok'
             }
             
         except Exception as e:
