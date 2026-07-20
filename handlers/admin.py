@@ -90,4 +90,22 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "*By platform:*\n" + "\n".join(platform_lines) + "\n\n"
         "*Top users:*\n" + "\n".join(user_lines) + "\n\n"
         f"📅 Started: {stats['start_date'][:10]}\n"
-        f"📈 Today: {stats['daily_downloads'].get(dat
+        f"📈 Today: {stats['daily_downloads'].get(datetime.now().strftime('%Y-%m-%d'), 0)}"
+    )
+    
+    await update.message.reply_text(stats_text, parse_mode='Markdown')
+
+async def reset_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await is_admin(update):
+        await update.message.reply_text("⛔ Admin only.")
+        return
+    
+    stats_manager.stats = {
+        'total_downloads': 0,
+        'downloads_by_platform': {},
+        'downloads_by_user': {},
+        'daily_downloads': {},
+        'start_date': datetime.now().isoformat()
+    }
+    stats_manager.save_stats()
+    await update.message.reply_text("✅ Stats reset.")
