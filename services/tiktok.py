@@ -1,5 +1,5 @@
 """
-TikTok downloader service - Cookie Support
+TikTok downloader service - Supports videos and photos
 """
 import logging
 from pathlib import Path
@@ -10,18 +10,20 @@ from services.downloader import DownloaderService
 logger = logging.getLogger(__name__)
 
 class TikTokService(DownloaderService):
-    """TikTok content downloader with cookie support"""
+    """TikTok content downloader - videos + photos"""
     
     def __init__(self):
         super().__init__()
         self.cookies_file = Path('cookies.txt')
     
     async def download_content(self, url: str) -> Optional[Dict[str, Any]]:
+        """Download TikTok content (video or photo)"""
         try:
             opts = self.get_ydl_opts('best')
             opts.update({
                 'extract_flat': False,
                 'sleep_interval': 3,
+                'ignoreerrors': True,
             })
             
             if self.cookies_file.exists():
@@ -31,15 +33,29 @@ class TikTokService(DownloaderService):
             file_path = await self.download(url, opts)
             
             if not file_path or not file_path.exists():
-                return None
+                # Try alternative format for photos
+                logger.info("Trying alternative download for TikTok photo...")
+                opts2 = self.get_ydl_opts('bestvideo+bestaudio/best')
+                opts2.update({
+                    'extract_flat': False,
+                    'sleep_interval': 3,
+                    'ignoreerrors': True,
+                })
+                if self.cookies_file.exists():
+                    opts2['cookiefile'] = str(self.cookies_file)
+                file_path = await self.download(url, opts2)
+                
+                if not file_path or not file_path.exists():
+                    return None
             
-            is_slideshow = 'photo' in str(url).lower() or 'slides' in str(url).lower()
-            content_type = 'video' if not is_slideshow else 'photo'
+            # Determine content type
+            is_photo = 'photo' in str(url).lower() or file_path.suffix in ['.jpg', '.jpeg', '.png']
+            content_type = 'photo' if is_photo else 'video'
             
             return {
                 'file_path': str(file_path),
                 'type': content_type,
-                'caption': '✓ TikTok content downloaded',
+                'caption': f'✓ TikTok {content_type} downloaded',
                 'source': 'tiktok',
                 'no_watermark': True
             }
@@ -51,4 +67,5 @@ class TikTokService(DownloaderService):
 tiktok_service = TikTokService()
 
 async def download_tiktok(url: str) -> Optional[Dict[str, Any]]:
+    """Download TikTok content"""
     return await tiktok_service.download_content(url)
