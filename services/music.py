@@ -1,5 +1,5 @@
 """
-Music search and download service
+Music search and download service - Cookie Support
 """
 import logging
 import asyncio
@@ -23,6 +23,7 @@ async def search_music(query: str, limit: int = 1) -> List[Dict[str, Any]]:
         
         if youtube_service.cookies_file.exists():
             opts['cookiefile'] = str(youtube_service.cookies_file)
+            logger.info("✅ Using cookies for music search")
         
         def sync_search():
             with yt_dlp.YoutubeDL(opts) as ydl:
@@ -38,7 +39,7 @@ async def search_music(query: str, limit: int = 1) -> List[Dict[str, Any]]:
             if not entry:
                 continue
                 
-            duration = entry.get('duration', 0)
+            duration = int(entry.get('duration', 0))
             duration_str = f"{duration // 60}:{duration % 60:02d}"
             
             results.append({
