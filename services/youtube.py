@@ -1,23 +1,20 @@
 """
-YouTube downloader service - Full Cookie Support
+YouTube downloader - With streaming support
 """
 import logging
 import yt_dlp
 import asyncio
+from typing import Dict, Any, Optional, Tuple
 from pathlib import Path
-from typing import Dict, Any, Optional
 
-from services.downloader import DownloaderService
 from config import config
-from utils.helpers import format_file_size
 
 logger = logging.getLogger(__name__)
 
-class YouTubeService(DownloaderService):
-    """YouTube content downloader with cookie support"""
+class YouTubeService:
+    """YouTube downloader with streaming support"""
     
     def __init__(self):
-        super().__init__()
         self.cookies_file = Path('cookies.txt')
     
     def get_auth_opts(self) -> Dict[str, Any]:
@@ -25,25 +22,25 @@ class YouTubeService(DownloaderService):
         opts = {
             'sleep_interval': 5,
             'max_sleep_interval': 30,
+            'quiet': True,
+            'no_warnings': True,
         }
         
         if self.cookies_file.exists():
             opts['cookiefile'] = str(self.cookies_file)
-            logger.info("✅ Using cookies.txt")
-        else:
-            logger.warning("⚠️ cookies.txt not found")
+            logger.info("✅ Using cookies.txt for YouTube")
         
         return opts
     
     async def get_video_info(self, url: str) -> Optional[Dict[str, Any]]:
+        """Get video information"""
         try:
-            opts = self.get_base_opts()
-            opts.update({
-                'extract_flat': True,
+            opts = {
                 'quiet': True,
                 'no_warnings': True,
-            })
-            opts.update(self.get_auth_opts())
+                'extract_flat': True,
+                **self.get_auth_opts()
+            }
             
             def sync_extract():
                 with yt_dlp.YoutubeDL(opts) as ydl:
@@ -55,65 +52,41 @@ class YouTubeService(DownloaderService):
             if not info:
                 return None
             
+            # Format duration
+            duration = info.get('duration', 0)
+            hours = duration // 3600
+            minutes = (duration % 3600) // 60
+            seconds = duration % 60
+            if hours > 0:
+                duration_str = f"{hours}:{minutes:02d}:{seconds:02d}"
+            else:
+                duration_str = f"{minutes}:{seconds:02d}"
+            
+            # Get qualities
             qualities = {}
             for quality_key, quality_info in config.YOUTUBE_QUALITIES.items():
-                try:
-                    format_spec = quality_info['format']
-                    size_info = await self._get_format_size(url, format_spec)
-                    qualities[quality_key] = {
-                        'label': quality_info['label'],
-                        'format': format_spec,
-                        'size': size_info
-                    }
-                except Exception as e:
-                    logger.warning(f"Could not get size for {quality_key}: {e}")
-                    qualities[quality_key] = {
-                        'label': quality_info['label'],
-                        'format': format_spec,
-                        'size': None
-                    }
+                qualities[quality_key] = {
+                    'label': quality_info['label'],
+                    'format': quality_info['format'],
+                    'size': None
+                }
             
             return {
                 'video_id': info.get('id'),
                 'title': info.get('title'),
-                'duration': self._format_duration(info.get('duration', 0)),
-                'duration_seconds': info.get('duration', 0),
+                'duration': duration_str,
+                'duration_seconds': duration,
                 'url': url,
                 'qualities': qualities,
                 'thumbnail': info.get('thumbnail')
             }
             
         except Exception as e:
-            logger.error(f"YouTube info error: {str(e)}", exc_info=True)
-            return None
-    
-    async def _get_format_size(self, url: str, format_spec: str) -> Optional[str]:
-        try:
-            opts = self.get_base_opts()
-            opts.update({
-                'extract_flat': True,
-                'quiet': True,
-            })
-            opts.update(self.get_auth_opts())
-            
-            def sync_get_size():
-                with yt_dlp.YoutubeDL(opts) as ydl:
-                    info = ydl.extract_info(url, download=False)
-                    if info:
-                        for f in info.get('formats', []):
-                            if f.get('format_id') == format_spec:
-                                size = f.get('filesize') or f.get('filesize_approx')
-                                if size:
-                                    return format_file_size(size)
-                return None
-            
-            loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(None, sync_get_size)
-            
-        except Exception:
+            logger.error(f"YouTube info error: {str(e)}")
             return None
     
     async def download_video(self, url: str, quality: str = '720p') -> Optional[Dict[str, Any]]:
+        """Download video and return file data"""
         try:
             if quality not in config.YOUTUBE_QUALITIES:
                 quality = '720p'
@@ -121,79 +94,98 @@ class YouTubeService(DownloaderService):
             quality_info = config.YOUTUBE_QUALITIES[quality]
             format_spec = quality_info['format']
             
-            opts = self.get_ydl_opts(format_spec)
-            opts.update({
+            opts = {
+                'quiet': True,
+                'no_warnings': True,
+                'format': format_spec,
                 'merge_output_format': 'mp4',
-            })
-            opts.update(self.get_auth_opts())
+                **self.get_auth_opts()
+            }
             
-            file_path = await self.download(url, opts)
+            def sync_download():
+                with yt_dlp.YoutubeDL(opts) as ydl:
+                    info = ydl.extract_info(url, download=True)
+                    if not info:
+                        return None
+                    filename = ydl.prepare_filename(info)
+                    if Path(filename).exists():
+                        return Path(filename)
+                    return None
+            
+            loop = asyncio.get_event_loop()
+            file_path = await loop.run_in_executor(None, sync_download)
             
             if not file_path or not file_path.exists():
                 return None
             
+            # Read file into memory (streaming directly)
+            with open(file_path, 'rb') as f:
+                file_data = f.read()
+            
+            # Clean up
+            file_path.unlink()
+            
             return {
-                'file_path': str(file_path),
+                'file_data': file_data,
+                'filename': file_path.name,
                 'type': 'video',
-                'caption': '✓ YouTube video downloaded',
-                'source': 'youtube'
+                'caption': f'✅ YouTube video downloaded ({quality})'
             }
             
         except Exception as e:
-            logger.error(f"YouTube download error: {str(e)}", exc_info=True)
+            logger.error(f"YouTube download error: {str(e)}")
             return None
     
     async def download_audio(self, url: str) -> Optional[Dict[str, Any]]:
+        """Download audio and return file data"""
         try:
-            opts = self.get_base_opts()
-            opts.update({
+            opts = {
+                'quiet': True,
+                'no_warnings': True,
                 'format': 'bestaudio/best',
-                'outtmpl': str(self.download_path / '%(title)s.%(ext)s'),
                 'postprocessors': [
                     {
                         'key': 'FFmpegExtractAudio',
                         'preferredcodec': 'mp3',
                         'preferredquality': '192',
-                    },
-                    {
-                        'key': 'FFmpegMetadata',
-                        'add_metadata': True,
                     }
                 ],
-                'writethumbnail': True,
-                'quiet': True,
-            })
-            opts.update(self.get_auth_opts())
+                **self.get_auth_opts()
+            }
             
-            file_path = await self.download(url, opts)
+            def sync_download():
+                with yt_dlp.YoutubeDL(opts) as ydl:
+                    info = ydl.extract_info(url, download=True)
+                    if not info:
+                        return None
+                    filename = ydl.prepare_filename(info).replace('.mp4', '.mp3').replace('.webm', '.mp3')
+                    if Path(filename).exists():
+                        return Path(filename)
+                    return None
+            
+            loop = asyncio.get_event_loop()
+            file_path = await loop.run_in_executor(None, sync_download)
             
             if not file_path or not file_path.exists():
                 return None
             
-            mp3_path = file_path.with_suffix('.mp3')
-            if mp3_path.exists():
-                return {
-                    'file_path': str(mp3_path),
-                    'type': 'audio',
-                    'caption': '✓ Audio downloaded',
-                    'source': 'youtube'
-                }
+            # Read file into memory
+            with open(file_path, 'rb') as f:
+                file_data = f.read()
             
-            return None
+            # Clean up
+            file_path.unlink()
+            
+            return {
+                'file_data': file_data,
+                'filename': file_path.name,
+                'type': 'audio',
+                'title': file_path.stem.replace('.mp3', '')
+            }
             
         except Exception as e:
-            logger.error(f"YouTube audio download error: {str(e)}", exc_info=True)
+            logger.error(f"YouTube audio error: {str(e)}")
             return None
-    
-    def _format_duration(self, seconds: int) -> str:
-        hours = seconds // 3600
-        minutes = (seconds % 3600) // 60
-        seconds = seconds % 60
-        
-        if hours > 0:
-            return f"{hours}:{minutes:02d}:{seconds:02d}"
-        else:
-            return f"{minutes}:{seconds:02d}"
 
 youtube_service = YouTubeService()
 
