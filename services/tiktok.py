@@ -1,5 +1,5 @@
 """
-TikTok downloader service with cookie support
+TikTok downloader service - Cookie Support
 """
 import logging
 from pathlib import Path
@@ -39,7 +39,7 @@ class TikTokService(DownloaderService):
             return {
                 'file_path': str(file_path),
                 'type': content_type,
-                'caption': '🎵 TikTok content downloaded successfully!',
+                'caption': '✓ TikTok content downloaded',
                 'source': 'tiktok',
                 'no_watermark': True
             }
