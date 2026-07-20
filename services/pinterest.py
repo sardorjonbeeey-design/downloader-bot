@@ -2,7 +2,7 @@
 Pinterest downloader - Using Cobalt
 """
 import logging
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional
 
 from services.cobalt import cobalt
 from services.downloader import DownloaderService
@@ -13,7 +13,7 @@ class PinterestService(DownloaderService):
     """Pinterest content downloader using Cobalt"""
     
     async def download_content(self, url: str) -> Optional[Dict[str, Any]]:
-        """Download Pinterest content - images or videos"""
+        """Download Pinterest content - returns file_data directly"""
         try:
             file_data, filename, error = await cobalt.download(url)
             
@@ -24,7 +24,6 @@ class PinterestService(DownloaderService):
             if not file_data:
                 return None
             
-            # Determine content type from filename
             is_video = filename and any(ext in filename.lower() for ext in ['.mp4', '.mov', '.webm'])
             
             return {
