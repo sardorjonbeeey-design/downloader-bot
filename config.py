@@ -7,11 +7,11 @@ load_dotenv()
 class Config:
     BOT_TOKEN = os.getenv('BOT_TOKEN')
     DOWNLOAD_PATH = Path(os.getenv('DOWNLOAD_PATH', './downloads'))
-    MAX_FILE_SIZE = int(os.getenv('MAX_FILE_SIZE', 500))
+    MAX_FILE_SIZE = int(os.getenv('MAX_FILE_SIZE', 50))
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
     
-    # Your Cobalt instance
-    COBALT_API_URL = os.getenv('COBALT_API_URL', 'https://qadam-cobalt.onrender.com')
+    # CORRECT: Full API endpoint with /api/json
+    COBALT_API_URL = os.getenv('COBALT_API_URL', 'https://qadam-cobalt.onrender.com/api/json')
     
     SUPPORTED_PLATFORMS = {
         'instagram': ['instagram.com', 'instagr.am'],
