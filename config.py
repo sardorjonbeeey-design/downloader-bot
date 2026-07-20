@@ -7,16 +7,17 @@ load_dotenv()
 class Config:
     BOT_TOKEN = os.getenv('BOT_TOKEN')
     DOWNLOAD_PATH = Path(os.getenv('DOWNLOAD_PATH', './downloads'))
-    MAX_FILE_SIZE = int(os.getenv('MAX_FILE_SIZE', 50))
+    MAX_FILE_SIZE = int(os.getenv('MAX_FILE_SIZE', 50))  # MB
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
     
-    # CORRECT: Full API endpoint with /api/json
-    COBALT_API_URL = os.getenv('COBALT_API_URL', 'https://qadam-cobalt.onrender.com/api/json')
+    # Cobalt API
+    COBALT_API_URL = os.getenv('COBALT_API_URL', 'https://qadam-cobalt.onrender.com')
     
     SUPPORTED_PLATFORMS = {
         'instagram': ['instagram.com', 'instagr.am'],
         'tiktok': ['tiktok.com', 'vm.tiktok.com'],
         'youtube': ['youtube.com', 'youtu.be'],
+        'pinterest': ['pinterest.com'],
     }
     
     YOUTUBE_QUALITIES = {
