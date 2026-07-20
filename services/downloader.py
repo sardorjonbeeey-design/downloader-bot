@@ -1,5 +1,5 @@
 """
-Base downloader service using yt-dlp
+Base downloader service using yt-dlp - Fixed
 """
 import asyncio
 import yt_dlp
@@ -26,7 +26,6 @@ class DownloaderService:
             'no_warnings': True,
             'ignoreerrors': True,
             'extract_flat': False,
-            # Add these for better reliability
             'retries': 10,
             'fragment_retries': 10,
             'skip_download': False,
@@ -43,6 +42,12 @@ class DownloaderService:
                     
                     filename = ydl.prepare_filename(info)
                     return Path(filename) if Path(filename).exists() else None
+            except yt_dlp.utils.DownloadError as e:
+                if "private" in str(e).lower():
+                    logger.warning(f"Private content: {url}")
+                else:
+                    logger.error(f"Download error: {str(e)}")
+                return None
             except Exception as e:
                 logger.error(f"Download error: {str(e)}")
                 return None
@@ -72,7 +77,6 @@ class DownloaderService:
         })
         return opts
 
-# Create singleton instance
 downloader_service = DownloaderService()
 
 async def download_content(url: str, format_spec: str = 'best') -> Optional[Path]:
