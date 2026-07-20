@@ -1,68 +1,133 @@
 """
-Cobalt API - Single Source of Truth
+Cobalt API - Proven working code from Qadam bot
 All TikTok and Instagram downloads go through this ONE file
 """
-import aiohttp
+import os
+import re
+import time
 import logging
+import asyncio
+from typing import Optional, Tuple, Dict, Any
 from pathlib import Path
-from typing import Optional, Dict, Any
+
+import aiohttp
 
 from config import config
 
 logger = logging.getLogger(__name__)
 
-class CobaltClient:
-    """Single Cobalt client - Update ONCE, works everywhere"""
+# Your Cobalt URL from .env
+COBALT_API_URL = config.COBALT_API_URL
+
+# Platforms where audio is preferred
+AUDIO_ONLY_DOMAINS = ("soundcloud.com", "music.youtube.com")
+
+# Error messages
+ERROR_MESSAGES = {
+    "error.api.link.invalid": "❌ Havola noto'g'ri.",
+    "error.api.link.unsupported": "❌ Platforma qo'llab-quvvatlanmaydi.",
+    "error.api.fetch.empty": "🔒 Post yopiq (private) yoki o'chirilgan.",
+    "error.api.fetch.fail": "⚠️ Yuklab bo'lmadi. Qayta urinib ko'ring.",
+    "error.api.fetch.critical": "⚠️ Texnik xatolik. Qayta urinib ko'ring.",
+    "error.api.fetch.rate": "⏳ Juda ko'p so'rov. Birozdan keyin urinib ko'ring.",
+    "error.api.rate_exceeded": "⏳ Juda ko'p so'rov. Birozdan keyin urinib ko'ring.",
+    "error.api.content.too_long": "📏 Fayl juda uzun.",
+    "error.api.youtube.login": "🔒 Video login talab qiladi.",
+}
+DEFAULT_ERROR_MESSAGE = "😕 Havolani qayta ishlab bo'lmadi."
+
+
+async def resolve_link(url: str) -> Tuple[Optional[dict], Optional[str]]:
+    """Calls Cobalt to resolve a media URL - PROVEN WORKING"""
+    if not COBALT_API_URL:
+        logger.warning("COBALT_API_URL not set")
+        return None, "not_configured"
+
+    endpoint = COBALT_API_URL.rstrip("/") + "/"
+    headers = {"Accept": "application/json", "Content-Type": "application/json"}
+    download_mode = "audio" if any(d in url.lower() for d in AUDIO_ONLY_DOMAINS) else "auto"
+    body = {"url": url, "videoQuality": "1080", "downloadMode": download_mode}
+
+    try:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
+            async with session.post(endpoint, headers=headers, json=body) as resp:
+                try:
+                    data = await resp.json()
+                except (aiohttp.ContentTypeError, ValueError) as e:
+                    logger.error(f"Cobalt non-JSON response: {e}")
+                    return None, "invalid_response"
+
+                if resp.status >= 500:
+                    logger.error(f"Cobalt server error {resp.status}: {data}")
+                    return None, "offline"
+
+                logger.info(f"Cobalt resolved {url} -> status={data.get('status')}")
+                return data, None
+    except asyncio.TimeoutError:
+        logger.error(f"Cobalt timeout for {url}")
+        return None, "timeout"
+    except aiohttp.ClientConnectorError as e:
+        logger.error(f"Cannot reach Cobalt: {e}")
+        return None, "offline"
+    except aiohttp.ClientError as e:
+        logger.error(f"Cobalt request failed: {e}")
+        return None, "offline"
+
+
+def extract_link_and_note(data: dict) -> Tuple[Optional[str], str]:
+    """Extract download link from Cobalt response"""
+    status = data.get("status")
+
+    if status in ("redirect", "tunnel"):
+        return data.get("url"), ""
+
+    if status == "picker":
+        items = data.get("picker") or []
+        if items:
+            note = f" (jami {len(items)} ta fayl, birinchisi yuborildi)" if len(items) > 1 else ""
+            return items[0].get("url"), note
+        return None, ""
+
+    return None, ""
+
+
+async def download_with_cobalt(url: str) -> Optional[Path]:
+    """Download media using Cobalt - returns file path"""
+    data, reason = await resolve_link(url)
     
-    def __init__(self):
-        self.api_url = config.COBALT_API_URL
-        logger.info(f"✅ Cobalt API: {self.api_url}")
+    if reason:
+        logger.error(f"Cobalt error: {reason}")
+        return None
     
-    async def download(self, url: str) -> Optional[Path]:
-        """Download ANY content (TikTok, Instagram, etc)"""
-        try:
-            async with aiohttp.ClientSession() as session:
-                payload = {
-                    "url": url,
-                    "videoQuality": "720",
-                    "audioFormat": "mp3",
-                    "downloadMode": "auto"
-                }
-                
-                async with session.post(
-                    self.api_url,
-                    json=payload,
-                    headers={"Content-Type": "application/json", "Accept": "application/json"}
-                ) as response:
-                    
-                    if response.status != 200:
-                        logger.error(f"❌ Cobalt error: {response.status}")
-                        return None
-                    
-                    data = await response.json()
-                    
-                    if data.get('status') != 'ok':
-                        logger.error(f"❌ Cobalt: {data.get('text')}")
-                        return None
-                    
-                    download_url = data.get('url')
-                    if not download_url:
-                        return None
-                    
+    if not data:
+        return None
+    
+    link, note = extract_link_and_note(data)
+    
+    if not link:
+        code = (data.get("error") or {}).get("code")
+        logger.error(f"Cobalt error code: {code}")
+        return None
+    
+    # Download the file
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(link) as response:
+                if response.status == 200:
                     filename = data.get('filename', 'download.mp4')
                     filepath = Path(config.DOWNLOAD_PATH) / filename
                     
-                    async with session.get(download_url) as file_response:
-                        if file_response.status == 200:
-                            with open(filepath, 'wb') as f:
-                                f.write(await file_response.read())
-                            logger.info(f"✅ Downloaded: {filepath}")
-                            return filepath
-                        return None
-                            
-        except Exception as e:
-            logger.error(f"❌ Cobalt error: {str(e)}")
-            return None
-
-# ONE instance - use this everywhere
-cobalt = CobaltClient()
+                    # Ensure directory exists
+                    filepath.parent.mkdir(parents=True, exist_ok=True)
+                    
+                    with open(filepath, 'wb') as f:
+                        f.write(await response.read())
+                    
+                    logger.info(f"✅ Downloaded: {filepath}")
+                    return filepath
+                else:
+                    logger.error(f"Failed to download file: {response.status}")
+                    return None
+    except Exception as e:
+        logger.error(f"File download error: {str(e)}")
+        return None
