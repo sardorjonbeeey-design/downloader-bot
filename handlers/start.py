@@ -12,11 +12,11 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     welcome = (
         "⚡ **Yukla Pro**\n\n"
         "Universal Yuklab Oluvchi\n"
-        "━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
         "📸 Instagram · Postlar · Reels\n"
         "🎵 TikTok · Videolar · Rasmlar\n"
         "▶️ YouTube · Videolar · Shorts · Audio\n\n"
-        "━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
         "Yuklab olish uchun havola yuboring\n"
         "Audio uchun qo'shiq nomini yozing\n\n"
         "/help · /info"
