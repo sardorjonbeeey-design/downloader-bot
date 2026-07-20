@@ -1,17 +1,15 @@
 """
-Music search and download service - Cookie Support
+Music search - With streaming support
 """
 import logging
 import asyncio
 import yt_dlp
-from pathlib import Path
-from typing import List, Dict, Any, Optional
-
-from services.youtube import youtube_service
+from typing import List, Dict, Any, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
 async def search_music(query: str, limit: int = 1) -> List[Dict[str, Any]]:
+    """Search for music on YouTube"""
     try:
         opts = {
             'quiet': True,
@@ -20,10 +18,6 @@ async def search_music(query: str, limit: int = 1) -> List[Dict[str, Any]]:
             'default_search': 'ytsearch',
             'max_downloads': limit,
         }
-        
-        if youtube_service.cookies_file.exists():
-            opts['cookiefile'] = str(youtube_service.cookies_file)
-            logger.info("✅ Using cookies for music search")
         
         def sync_search():
             with yt_dlp.YoutubeDL(opts) as ydl:
@@ -38,7 +32,7 @@ async def search_music(query: str, limit: int = 1) -> List[Dict[str, Any]]:
         for entry in entries:
             if not entry:
                 continue
-                
+            
             duration = int(entry.get('duration', 0))
             duration_str = f"{duration // 60}:{duration % 60:02d}"
             
@@ -55,16 +49,47 @@ async def search_music(query: str, limit: int = 1) -> List[Dict[str, Any]]:
         return results
         
     except Exception as e:
-        logger.error(f"Music search error: {str(e)}", exc_info=True)
+        logger.error(f"Music search error: {str(e)}")
         return []
 
-async def download_music(url: str) -> Optional[Path]:
+async def download_music(url: str) -> Tuple[Optional[bytes], Optional[str], Optional[str]]:
+    """Download music and return (file_data, filename, error)"""
     try:
-        result = await youtube_service.download_audio(url)
-        if result:
-            return Path(result['file_path'])
-        return None
+        opts = {
+            'quiet': True,
+            'no_warnings': True,
+            'format': 'bestaudio/best',
+            'postprocessors': [
+                {
+                    'key': 'FFmpegExtractAudio',
+                    'preferredcodec': 'mp3',
+                    'preferredquality': '192',
+                }
+            ]
+        }
+        
+        def sync_download():
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                if not info:
+                    return None
+                filename = ydl.prepare_filename(info).replace('.mp4', '.mp3').replace('.webm', '.mp3')
+                if Path(filename).exists():
+                    return Path(filename)
+                return None
+        
+        loop = asyncio.get_event_loop()
+        file_path = await loop.run_in_executor(None, sync_download)
+        
+        if not file_path or not file_path.exists():
+            return None, None, "Download failed"
+        
+        with open(file_path, 'rb') as f:
+            file_data = f.read()
+        
+        file_path.unlink()
+        
+        return file_data, file_path.name, None
         
     except Exception as e:
-        logger.error(f"Music download error: {str(e)}", exc_info=True)
-        return None
+        return None, None, str(e)[:100]
