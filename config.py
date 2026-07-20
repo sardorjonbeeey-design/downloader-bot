@@ -6,18 +6,19 @@ load_dotenv()
 
 class Config:
     BOT_TOKEN = os.getenv('BOT_TOKEN')
-    DOWNLOAD_PATH = Path(os.getenv('DOWNLOAD_PATH', './downloads'))  # Convert to Path
-    MAX_FILE_SIZE = int(os.getenv('MAX_FILE_SIZE', 50))  # MB
+    DOWNLOAD_PATH = Path(os.getenv('DOWNLOAD_PATH', './downloads'))
+    MAX_FILE_SIZE = int(os.getenv('MAX_FILE_SIZE', 50))
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
     
-    # Supported platforms
+    # Cobalt API URL
+    COBALT_API_URL = os.getenv('COBALT_API_URL', 'https://api.cobalt.tools')
+    
     SUPPORTED_PLATFORMS = {
         'instagram': ['instagram.com', 'instagr.am'],
         'tiktok': ['tiktok.com', 'vm.tiktok.com'],
         'youtube': ['youtube.com', 'youtu.be'],
     }
     
-    # YouTube quality options
     YOUTUBE_QUALITIES = {
         '360p': {'format': 'bestvideo[height<=360]+bestaudio/best[height<=360]', 'label': '360p'},
         '480p': {'format': 'bestvideo[height<=480]+bestaudio/best[height<=480]', 'label': '480p'},
