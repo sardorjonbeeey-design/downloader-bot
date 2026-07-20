@@ -1,5 +1,5 @@
 """
-Instagram downloader service - Cobalt powered
+Instagram downloader service - Using your Cobalt instance
 """
 import logging
 import aiohttp
@@ -8,18 +8,19 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 
 from services.downloader import DownloaderService
+from config import config
 
 logger = logging.getLogger(__name__)
 
 class InstagramService(DownloaderService):
-    """Instagram content downloader using Cobalt API"""
+    """Instagram content downloader using your Cobalt instance"""
     
     def __init__(self):
         super().__init__()
-        self.cobalt_api = "https://api.cobalt.tools/api/json"
+        self.cobalt_api = f"{config.COBALT_API_URL}/api/json"
     
     async def download_with_cobalt(self, url: str) -> Optional[Path]:
-        """Download using Cobalt API"""
+        """Download using your Cobalt instance"""
         try:
             async with aiohttp.ClientSession() as session:
                 payload = {
@@ -65,7 +66,6 @@ class InstagramService(DownloaderService):
             if not file_path or not file_path.exists():
                 return None
             
-            # Determine content type
             content_type = 'photo'
             if file_path.suffix in ['.mp4', '.mov', '.webm']:
                 content_type = 'video'
