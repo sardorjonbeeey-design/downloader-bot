@@ -321,10 +321,11 @@ async def handle_pinterest(url: str, update: Update, context: ContextTypes.DEFAU
     return result
 
 # ============================================
-# 7. MUSIC
+# 7. MUSIC - TEXT ONLY (NO THUMBNAIL)
 # ============================================
 
 async def handle_music_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle music search - text only, no thumbnail"""
     query = update.message.text.strip()
     status_msg = await update.message.reply_text(f"🔍 \"{query}\" qidirilmoqda...")
     
@@ -362,14 +363,12 @@ async def handle_music_search(update: Update, context: ContextTypes.DEFAULT_TYPE
             ]
         ])
         
-        await update.message.reply_photo(
-            photo=result['thumbnail'],
-            caption=(
-                f"🎵 *{result['title']}*\n"
-                f"👤 Artist · {result['artist']}\n"
-                f"⏱️ Davomiyligi · {result['duration']}\n\n"
-                f"📥 Tanlang:"
-            ),
+        # TEXT ONLY - No photo, no thumbnail
+        await update.message.reply_text(
+            f"🎵 *{result['title']}*\n"
+            f"👤 Artist · {result['artist']}\n"
+            f"⏱️ Davomiyligi · {result['duration']}\n\n"
+            f"📥 Tanlang:",
             reply_markup=keyboard,
             parse_mode='Markdown'
         )
