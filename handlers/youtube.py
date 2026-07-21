@@ -1,5 +1,5 @@
 """
-YouTube Handler - YouTube logikasi FAQAT shu yerda
+YouTube Handler - All YouTube logic in ONE place
 """
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -11,7 +11,7 @@ from handlers.admin import stats_manager
 logger = logging.getLogger(__name__)
 
 async def handle_youtube(url: str, update: Update, context: ContextTypes.DEFAULT_TYPE, status_msg):
-    """YouTube logikasi"""
+    """All YouTube logic here"""
     user_id = update.effective_user.id
     
     result = await download_youtube(url)
@@ -25,7 +25,7 @@ async def handle_youtube(url: str, update: Update, context: ContextTypes.DEFAULT
         )
         return None
     
-    # Sifat tanlash
+    # Show quality selection
     if 'qualities' in result:
         await status_msg.delete()
         keyboard = build_youtube_keyboard(result, result.get('video_id', 'unknown'))
@@ -52,7 +52,7 @@ async def handle_youtube(url: str, update: Update, context: ContextTypes.DEFAULT
     return result
 
 def build_youtube_keyboard(result: dict, video_id: str) -> InlineKeyboardMarkup:
-    """YouTube sifat tugmalari"""
+    """Build YouTube quality keyboard"""
     qualities = result.get('qualities', {})
     keyboard = []
     
@@ -78,19 +78,22 @@ def build_youtube_keyboard(result: dict, video_id: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 def build_youtube_caption(result: dict) -> str:
-    """YouTube caption"""
+    """Build YouTube caption - FIXED: no backslash in f-string"""
+    title = result.get('title', "Noma'lum")
+    duration = result.get('duration', "Noma'lum")
+    
     return (
         f"▶️ *YouTube*\n"
         f"━━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"🎬 *{result.get('title', 'Noma\'lum')}*\n"
-        f"⏱️ Davomiyligi: {result.get('duration', 'Noma\'lum')}\n\n"
+        f"🎬 *{title}*\n"
+        f"⏱️ Davomiyligi: {duration}\n\n"
         f"📥 *Sifatni tanlang:*\n"
         f"• Video: MP4\n"
         f"• Audio: MP3 (192kbps)"
     )
 
 async def youtube_callback_handler(query, context):
-    """YouTube tugma bosishlarini boshqarish"""
+    """Handle YouTube callbacks"""
     data = query.data
     parts = data.split('_')
     
@@ -117,10 +120,10 @@ async def youtube_callback_handler(query, context):
     await download_video_quality(query, context, video_info, action)
 
 async def show_preview(query, video_info):
-    """Video ko'rish"""
+    """Show video preview"""
     thumbnail = video_info.get('thumbnail')
     title = video_info.get('title', 'Video')
-    duration = video_info.get('duration', 'Noma\'lum')
+    duration = video_info.get('duration', "Noma'lum")
     
     if thumbnail:
         await query.edit_message_caption(
@@ -134,7 +137,7 @@ async def show_preview(query, video_info):
         )
 
 async def download_audio(query, context, video_info):
-    """Audio yuklab olish"""
+    """Download audio"""
     await query.edit_message_text("🎵 Audio (MP3) yuklanmoqda...")
     
     try:
@@ -154,7 +157,7 @@ async def download_audio(query, context, video_info):
         await query.edit_message_text(f"❌ Xatolik: {str(e)[:60]}")
 
 async def download_video_quality(query, context, video_info, quality):
-    """Tanlangan sifatda video yuklab olish"""
+    """Download video with selected quality"""
     await query.edit_message_text(f"📥 {quality} yuklanmoqda...")
     
     try:
