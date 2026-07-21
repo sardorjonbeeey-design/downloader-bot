@@ -356,12 +356,18 @@ async def handle_music_search(update: Update, context: ContextTypes.DEFAULT_TYPE
         except Exception:
             pass
         
-        keyboard = InlineKeyboardMarkup([
-            [
-                InlineKeyboardButton("🎵 MP3 Yuklab olish", callback_data=f"music_download_{result['id']}"),
+        # Build keyboard - only download button, watch button if URL exists
+        keyboard_buttons = [
+            InlineKeyboardButton("🎵 MP3 Yuklab olish", callback_data=f"music_download_{result['id']}")
+        ]
+        
+        # Add Watch button only if URL exists
+        if result.get('url'):
+            keyboard_buttons.append(
                 InlineKeyboardButton("▶️ Ko'rish", url=result['url'])
-            ]
-        ])
+            )
+        
+        keyboard = InlineKeyboardMarkup([keyboard_buttons])
         
         # TEXT ONLY - No photo, no thumbnail
         await update.message.reply_text(
