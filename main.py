@@ -14,9 +14,10 @@ from handlers.main_handler import (
     help_command,
     info_command,
     handle_url,
-    youtube_callback_handler,
     handle_music_callback,
 )
+from handlers.youtube import youtube_callback_handler
+from handlers.music import handle_music_search
 from handlers.admin import stats_command, reset_stats, stats_manager
 
 logging.basicConfig(
