@@ -1,5 +1,5 @@
 """
-Start commands - Imports from main_handler
+Start commands
 """
 from handlers.main_handler import start_command, help_command, info_command
 
