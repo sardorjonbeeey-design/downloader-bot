@@ -1,93 +1,93 @@
 """
-Admin handlers - Analytics and Stats
+Music Handler - Music logikasi FAQAT shu yerda
 """
 import logging
-import json
-from pathlib import Path
-from datetime import datetime
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
+
+from services.music import search_music, download_music
+from handlers.admin import stats_manager
 
 logger = logging.getLogger(__name__)
 
-ADMIN_IDS = [123456789]  # Replace with your Telegram user ID
-
-class StatsManager:
-    def __init__(self):
-        self.stats_file = Path('data/stats.json')
-        self.stats_file.parent.mkdir(parents=True, exist_ok=True)
-        self.stats = self.load_stats()
+async def handle_music_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Music qidirish"""
+    query = update.message.text.strip()
     
-    def load_stats(self):
-        if self.stats_file.exists():
-            with open(self.stats_file, 'r') as f:
-                return json.load(f)
-        return {
-            'total_downloads': 0,
-            'downloads_by_platform': {},
-            'downloads_by_user': {},
-            'daily_downloads': {},
-            'start_date': datetime.now().isoformat()
-        }
+    status_msg = await update.message.reply_text(f"🔍 \"{query}\" qidirilmoqda...")
     
-    def save_stats(self):
-        with open(self.stats_file, 'w') as f:
-            json.dump(self.stats, f, indent=2)
-    
-    def add_download(self, user_id: int, platform: str):
-        self.stats['total_downloads'] += 1
+    try:
+        results = await search_music(query)
         
-        if platform not in self.stats['downloads_by_platform']:
-            self.stats['downloads_by_platform'][platform] = 0
-        self.stats['downloads_by_platform'][platform] += 1
+        if not results:
+            await status_msg.edit_text(
+                f"❌ Natija topilmadi\n\n"
+                f"\"{query}\"\n\n"
+                "Urinib ko'ring:\n"
+                "• Boshqa imlo\n"
+                "• Artist + qo'shiq nomi"
+            )
+            return
         
-        user_id_str = str(user_id)
-        if user_id_str not in self.stats['downloads_by_user']:
-            self.stats['downloads_by_user'][user_id_str] = 0
-        self.stats['downloads_by_user'][user_id_str] += 1
+        result = results[0]
+        await status_msg.delete()
         
-        today = datetime.now().strftime('%Y-%m-%d')
-        if today not in self.stats['daily_downloads']:
-            self.stats['daily_downloads'][today] = 0
-        self.stats['daily_downloads'][today] += 1
+        keyboard = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("🎵 MP3 Yuklab olish", callback_data=f"music_download_{result['id']}"),
+                InlineKeyboardButton("▶️ Ko'rish", url=result['url'])
+            ]
+        ])
         
-        self.save_stats()
-    
-    def get_stats(self):
-        return self.stats
+        await update.message.reply_photo(
+            photo=result['thumbnail'],
+            caption=(
+                f"🎵 *{result['title']}*\n"
+                f"👤 Artist · {result['artist']}\n"
+                f"⏱️ Davomiyligi · {result['duration']}\n\n"
+                f"📥 Tanlang:"
+            ),
+            reply_markup=keyboard,
+            parse_mode='Markdown'
+        )
+        
+        context.user_data['music_result'] = result
+        stats_manager.add_download(update.effective_user.id, 'music')
+        
+    except Exception as e:
+        logger.error(f"Music xatolik: {str(e)}", exc_info=True)
+        await status_msg.edit_text(f"❌ Xatolik: {str(e)[:100]}")
 
-stats_manager = StatsManager()
-
-async def is_admin(update: Update) -> bool:
-    user_id = update.effective_user.id
-    return user_id in ADMIN_IDS
-
-async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await is_admin(update):
-        await update.message.reply_text("⛔ This command is for admin only.")
-        return
+async def handle_music_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Music yuklab olish tugmasi"""
+    query = update.callback_query
+    await query.answer()
     
-    stats = stats_manager.get_stats()
+    _, action, music_id = query.data.split('_')
     
-    platform_lines = []
-    for platform, count in stats['downloads_by_platform'].items():
-        platform_lines.append(f"  {platform}: {count}")
-    
-    top_users = sorted(
-        stats['downloads_by_user'].items(),
-        key=lambda x: x[1],
-        reverse=True
-    )[:5]
-    
-    user_lines = []
-    for user_id, count in top_users:
-        user_lines.append(f"  {user_id}: {count}")
-    
-    stats_text = (
-        "📊 *Yukla Pro Stats*\n"
-        "━━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"📦 Total downloads: {stats['total_downloads']}\n\n"
-        "*By platform:*\n" + "\n".join(platform_lines) + "\n\n"
-        "*Top users:*\n" + "\n".join(user_lines) + "\n\n"
-        f"📅 Started: {stats['start_date'][:10]}\n"
-        f"📈 Today: {stats['daily_downloads'].get(dat
+    if action == 'download':
+        result = context.user_data.get('music_result')
+        
+        if not result or result.get('id') != music_id:
+            await query.edit_message_text("❌ Vaqt tugadi. Qayta qidiring.")
+            return
+        
+        await query.edit_message_text("🎵 MP3 yuklanmoqda...")
+        
+        try:
+            file_data, filename, error = await download_music(result['url'])
+            
+            if file_data:
+                await query.message.reply_audio(
+                    audio=file_data,
+                    title=result['title'],
+                    performer=result['artist'],
+                    duration=result.get('duration_seconds', 0),
+                    filename=filename
+                )
+                await query.message.delete()
+            else:
+                await query.edit_message_text(f"❌ {error or 'Yuklab bo\'lmadi'}")
+                
+        except Exception as e:
+            await query.edit_message_text(f"❌ Xatolik: {str(e)[:60]}")
