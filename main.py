@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Yukla Pro - All-in-One Downloader Bot
+Yukla Pro - Universal Downloader Bot
 """
 import logging
 import os
@@ -9,12 +9,12 @@ from flask import Flask
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler
 
 from config import config
-from handlers import (
+from handlers.main_handler import (
     start_command,
     help_command,
     info_command,
     handle_url,
-    handle_youtube_callback,
+    youtube_callback_handler,
     handle_music_callback,
 )
 from handlers.admin import stats_command, reset_stats, stats_manager
@@ -25,7 +25,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Create health check server
+# Health check server
 health_app = Flask(__name__)
 
 @health_app.route('/')
@@ -37,7 +37,6 @@ def health_check():
     return {"status": "ok", "service": "Yukla Pro"}, 200
 
 def start_health_server():
-    """Start health check server for Render"""
     port = int(os.environ.get('PORT', 10000))
     health_app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
 
@@ -46,11 +45,9 @@ def main():
         logger.error("BOT_TOKEN not found")
         return
     
-    # Start health check server in background
     logger.info("🔄 Starting health check server...")
     threading.Thread(target=start_health_server, daemon=True).start()
     
-    # Create application
     application = Application.builder().token(config.BOT_TOKEN).build()
     
     # Commands
@@ -68,13 +65,12 @@ def main():
         )
     )
     
-    application.add_handler(CallbackQueryHandler(handle_youtube_callback, pattern=r'^quality_.*'))
+    application.add_handler(CallbackQueryHandler(youtube_callback_handler, pattern=r'^youtube_.*'))
     application.add_handler(CallbackQueryHandler(handle_music_callback, pattern=r'^music_.*'))
     
     logger.info(f"📊 Stats: {stats_manager.stats['total_downloads']} total downloads")
     logger.info("⚡ Yukla Pro is starting...")
     
-    # Start bot
     application.run_polling(allowed_updates=['message', 'callback_query'])
 
 if __name__ == '__main__':
