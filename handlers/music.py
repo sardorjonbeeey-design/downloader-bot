@@ -87,7 +87,9 @@ async def handle_music_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 )
                 await query.message.delete()
             else:
-                await query.edit_message_text(f"❌ {error or 'Yuklab bo\'lmadi'}")
+                # FIXED: No backslash in f-string
+                error_msg = error or "Yuklab bo'lmadi"
+                await query.edit_message_text(f"❌ {error_msg}")
                 
         except Exception as e:
             await query.edit_message_text(f"❌ Xatolik: {str(e)[:60]}")
