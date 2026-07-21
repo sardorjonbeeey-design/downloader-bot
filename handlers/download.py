@@ -1,6 +1,6 @@
 """
-Download handlers - Imports from main_handler
+Download handlers
 """
-from handlers.main_handler import handle_url, handle_youtube_callback
+from handlers.main_handler import handle_url
 
-__all__ = ['handle_url', 'handle_youtube_callback']
+__all__ = ['handle_url']
